@@ -97,6 +97,71 @@ def _syevd(a, UPLO, with_eigen_vector, overwrite_a=False):
 
     return w.astype(w_dtype, copy=False), v.astype(v_dtype, copy=False)
 
+def _syev_batched(a, UPLO, with_eigen_vector, overwrite_a=False):
+    if runtime.is_hip:
+        raise RuntimeError('Only CUDA is supported')
+
+    from cupy_backends.cuda.libs import cublas
+    from cupy_backends.cuda.libs import cusolver
+
+    if UPLO not in ('L', 'U'):
+        raise ValueError('UPLO argument must be \'L\' or \'U\'')
+
+    # reject_float16=False for backward compatibility
+    dtype, v_dtype = _util.linalg_common_type(a, reject_float16=False)
+    real_dtype = dtype.char.lower()
+    w_dtype = v_dtype.char.lower()
+
+    # Note that cuSolver assumes fortran array
+    v = a.astype(dtype, order='F', copy=not overwrite_a)
+
+    *batch_shape, m, lda = a.shape
+    batch_size = _numpy.prod(batch_shape)
+    a = a.reshape(batch_size, m, lda)
+    v = _cupy.array(
+        a.swapaxes(-2, -1), order='C', copy=True, dtype=dtype)
+    w = cupy.empty(m, real_dtype)
+    dev_info = cupy.empty((), numpy.int32)
+    handle = device.Device().cusolver_handle
+
+    if with_eigen_vector:
+        jobz = cusolver.CUSOLVER_EIG_MODE_VECTOR
+    else:
+        jobz = cusolver.CUSOLVER_EIG_MODE_NOVECTOR
+
+    if UPLO == 'L':
+        uplo = cublas.CUBLAS_FILL_MODE_LOWER
+    else:  # UPLO == 'U'
+        uplo = cublas.CUBLAS_FILL_MODE_UPPER
+
+    _check_dtype(dtype)
+    type_v = _dtype.to_cuda_dtype(dtype)
+    type_w = _dtype.to_cuda_dtype(real_dtype)
+    params = cusolver.createParams()
+    try:
+        work_device_size, work_host_sizse = cusolver.xsyevBatched_bufferSize(
+            handle, params, jobz, uplo, m, type_v, v.data.ptr, lda,
+            type_w, w.data.ptr, type_v, batch_size)
+        work_device = cupy.empty(work_device_size, 'b')
+        work_host = numpy.empty(work_host_sizse, 'b')
+        cusolver.xsyev_batched(
+            handle, params, jobz, uplo, m, type_v, v.data.ptr, lda,
+            type_w, w.data.ptr, type_v,
+            work_device.data.ptr, work_device_size,
+            work_host.ctypes.data, work_host_sizse, dev_info.data.ptr, batch_size)
+    finally:
+         cusolver.destroyParams(params)
+    cupy.linalg._util._check_cusolver_dev_info_if_synchronization_allowed(
+        cusolver.xsyevBatched, dev_info)
+
+    w = w.astype(w_dtype, copy=False)
+    w = w.swapaxes(-2, -1).reshape(*batch_shape, m)
+    if not with_eigen_vector:
+        return w
+    v = v.astype(v_dtype, copy=False)
+    v = v.swapaxes(-2, -1).reshape(*batch_shape, m, m)
+    return w, v
+
 
 # assemble complex eigen vectors from real eigen vectors
 _assemble_complex_evs_kernel = cupy._core.ElementwiseKernel(
@@ -265,7 +330,7 @@ def eigh(a, UPLO='L'):
         return w, v
 
     if a.ndim > 2 or runtime.is_hip:
-        w, v = cupyx.cusolver.syevj(a, UPLO, True)
+        w, v = cupyx.cusolver._syev_batched(a, UPLO, True)
         return w, v
     else:
         return _syevd(a, UPLO, True)

@@ -3497,6 +3497,21 @@ cpdef (size_t, size_t) xsyevd_bufferSize(  # noqa
     check_status(status)
     return workspaceInBytesOnDevice, workspaceInBytesOnHost
 
+cpdef (size_t, size_t) xsyevBatched_bufferSize(  # noqa
+        intptr_t handle, intptr_t params, int jobz, int uplo,
+        int64_t n, int dataTypeA, intptr_t A, int64_t lda,
+        int dataTypeW, intptr_t W, int computeType, int64_t batchSize) except *:
+    cdef size_t workspaceInBytesOnDevice, workspaceInBytesOnHost
+    setStream(handle, stream_module.get_current_stream_ptr())
+    with nogil:
+        status = cusolverDnXsyevBatched_bufferSize(
+            <Handle>handle, <Params>params, <EigMode> jobz, <FillMode> uplo, n,
+            <DataType>dataTypeA, <void*>A, lda,
+            <DataType>dataTypeW, <void*>W, <DataType>computeType,
+            &workspaceInBytesOnDevice, &workspaceInBytesOnHost, batchSize)
+    check_status(status)
+    return workspaceInBytesOnDevice, workspaceInBytesOnHost
+
 cpdef xsyevd(
         intptr_t handle, intptr_t params, int jobz, int uplo,
         int64_t n, int dataTypeA, intptr_t A, int64_t lda,
@@ -3511,6 +3526,22 @@ cpdef xsyevd(
             <DataType>dataTypeW, <void*>W, <DataType>computeType,
             <void*>bufferOnDevice, workspaceInBytesOnDevice,
             <void*>bufferOnHost, workspaceInBytesOnHost, <int*>info)
+    check_status(status)
+
+cpdef xsyevBatched(
+        intptr_t handle, intptr_t params, int jobz, int uplo,
+        int64_t n, int dataTypeA, intptr_t A, int64_t lda,
+        int dataTypeW, intptr_t W, int computeType, intptr_t bufferOnDevice,
+        size_t workspaceInBytesOnDevice, intptr_t bufferOnHost,
+        size_t workspaceInBytesOnHost, intptr_t info, int64_t batchSize):
+    setStream(handle, stream_module.get_current_stream_ptr())
+    with nogil:
+        status = cusolverDnXsyevBatched(
+            <Handle>handle, <Params>params, <EigMode>jobz, <FillMode>uplo, n,
+            <DataType>dataTypeA, <void*>A, lda,
+            <DataType>dataTypeW, <void*>W, <DataType>computeType,
+            <void*>bufferOnDevice, workspaceInBytesOnDevice,
+            <void*>bufferOnHost, workspaceInBytesOnHost, <int*>info, batchSize)
     check_status(status)
 
 cpdef (size_t, size_t) xgeev_bufferSize(
