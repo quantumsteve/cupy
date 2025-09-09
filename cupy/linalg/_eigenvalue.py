@@ -318,7 +318,6 @@ def eigh(a, UPLO='L'):
 
     .. seealso:: :func:`numpy.linalg.eigh`
     """
-    import cupyx.cusolver
     _util._assert_stacked_2d(a)
     _util._assert_stacked_square(a)
 
@@ -330,7 +329,7 @@ def eigh(a, UPLO='L'):
         return w, v
 
     if a.ndim > 2 or runtime.is_hip:
-        w, v = cupyx.cusolver._syev_batched(a, UPLO, True)
+        w, v = _syev_batched(a, UPLO, True)
         return w, v
     else:
         return _syevd(a, UPLO, True)
