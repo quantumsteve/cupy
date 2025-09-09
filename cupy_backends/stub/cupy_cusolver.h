@@ -991,10 +991,6 @@ cusolverStatus_t cusolverDnXsyevd_bufferSize(...) {
     return CUSOLVER_STATUS_SUCCESS;
 }
 
-cusolverStatus_t cusolverDnXsyevBatched_bufferSize(...) {
-    return CUSOLVER_STATUS_SUCCESS;
-}
-
 cusolverStatus_t cusolverDnXsyevd(...) {
     return CUSOLVER_STATUS_SUCCESS;
 }

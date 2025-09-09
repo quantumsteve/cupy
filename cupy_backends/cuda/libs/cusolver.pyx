@@ -936,6 +936,17 @@ cdef extern from '../../cupy_lapack.h' nogil:
         DataType dataTypeW, void *W, DataType computeType,
         void *bufferOnDevice, size_t workspaceInBytesOnDevice,
         void *bufferOnHost, size_t workspaceInBytesOnHost, int *info)
+    int cusolverDnXsyevBatched_bufferSize(
+        Handle handle, Params params, EigMode jobz, FillMode uplo, int64_t n,
+        DataType dataTypeA, void *A, int64_t lda,
+        DataType dataTypeW, void *W, DataType computeType,
+        size_t *workspaceInBytesOnDevice, size_t *workspaceInBytesOnHost, int64_t batchSize)
+    int cusolverDnXsyevBatched(
+        Handle handle, Params params, EigMode jobz, FillMode uplo, int64_t n,
+        DataType dataTypeA, void *A, int64_t lda,
+        DataType dataTypeW, void *W, DataType computeType,
+        void *bufferOnDevice, size_t workspaceInBytesOnDevice,
+        void *bufferOnHost, size_t workspaceInBytesOnHost, int *info, int64_t batchSize)
 
     ###########################################################################
     # Sparse LAPACK Functions
