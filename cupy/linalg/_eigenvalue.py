@@ -97,6 +97,7 @@ def _syevd(a, UPLO, with_eigen_vector, overwrite_a=False):
 
     return w.astype(w_dtype, copy=False), v.astype(v_dtype, copy=False)
 
+
 def _syev_batched(a, UPLO, with_eigen_vector, overwrite_a=False):
     if runtime.is_hip:
         raise RuntimeError('Only CUDA is supported')
@@ -116,12 +117,12 @@ def _syev_batched(a, UPLO, with_eigen_vector, overwrite_a=False):
     v = a.astype(dtype, order='F', copy=not overwrite_a)
 
     *batch_shape, m, lda = a.shape
-    batch_size = _numpy.prod(batch_shape)
+    batch_size = numpy.prod(batch_shape)
     a = a.reshape(batch_size, m, lda)
-    v = _cupy.array(
+    v = cupy.array(
         a.swapaxes(-2, -1), order='C', copy=True, dtype=dtype)
-    w = cupy.empty(m, real_dtype)
-    dev_info = cupy.empty((), numpy.int32)
+    w = cupy.empty((batch_size, m), real_dtype).swapaxes(-2,-1)
+    dev_info = cupy.empty((batch_size,), cupy.int32)
     handle = device.Device().cusolver_handle
 
     if with_eigen_vector:
@@ -144,7 +145,7 @@ def _syev_batched(a, UPLO, with_eigen_vector, overwrite_a=False):
             type_w, w.data.ptr, type_v, batch_size)
         work_device = cupy.empty(work_device_size, 'b')
         work_host = numpy.empty(work_host_sizse, 'b')
-        cusolver.xsyev_batched(
+        cusolver.xsyevBatched(
             handle, params, jobz, uplo, m, type_v, v.data.ptr, lda,
             type_w, w.data.ptr, type_v,
             work_device.data.ptr, work_device_size,
@@ -328,7 +329,7 @@ def eigh(a, UPLO='L'):
         v = cupy.empty(a.shape, v_dtype)
         return w, v
 
-    if a.ndim > 2 or runtime.is_hip:
+    if a.ndim > 2: #or runtime.is_hip:
         w, v = _syev_batched(a, UPLO, True)
         return w, v
     else:
