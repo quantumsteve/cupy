@@ -113,9 +113,6 @@ def _syev_batched(a, UPLO, with_eigen_vector, overwrite_a=False):
     real_dtype = dtype.char.lower()
     w_dtype = v_dtype.char.lower()
 
-    # Note that cuSolver assumes fortran array
-    v = a.astype(dtype, order='F', copy=not overwrite_a)
-
     *batch_shape, m, lda = a.shape
     batch_size = numpy.prod(batch_shape)
     a = a.reshape(batch_size, m, lda)
